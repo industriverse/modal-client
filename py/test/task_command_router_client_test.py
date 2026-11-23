@@ -1632,3 +1632,30 @@ async def test_task_command_router_client_closes_and_finalizes(make_router_clien
 
     assert closed is True
     assert not client._channel_finalizer.alive
+
+
+def test_ssl_contexts_advertise_h2_alpn(monkeypatch):
+    import ssl
+    import modal.sandbox._task_command_router_client as router_mod
+
+    recorded: list[list[str]] = []
+
+    class _RecordingSSLContext:
+        def __init__(self, *args, **kwargs):
+            self.check_hostname = True
+            self.verify_mode = ssl.CERT_REQUIRED
+
+        def set_alpn_protocols(self, protocols: list[str]) -> None:
+            recorded.append(list(protocols))
+
+    monkeypatch.setattr(router_mod, "_shared_verifying_ssl_context_instance", None)
+    monkeypatch.setattr(router_mod.ssl, "create_default_context", lambda: _RecordingSSLContext())
+    monkeypatch.setattr(router_mod.ssl, "SSLContext", _RecordingSSLContext)
+
+    shared_ctx = router_mod._shared_verifying_ssl_context()
+    unverified_ctx = router_mod._unverified_ssl_context()
+
+    assert recorded == [["h2"], ["h2"]]
+    assert shared_ctx.verify_mode == ssl.CERT_REQUIRED
+    assert unverified_ctx.check_hostname is False
+    assert unverified_ctx.verify_mode == ssl.CERT_NONE

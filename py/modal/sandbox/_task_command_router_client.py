@@ -68,7 +68,9 @@ def _shared_verifying_ssl_context() -> ssl.SSLContext:
     """
     global _shared_verifying_ssl_context_instance
     if _shared_verifying_ssl_context_instance is None:
-        _shared_verifying_ssl_context_instance = ssl.create_default_context()
+        ssl_context = ssl.create_default_context()
+        ssl_context.set_alpn_protocols(["h2"])
+        _shared_verifying_ssl_context_instance = ssl_context
     return _shared_verifying_ssl_context_instance
 
 
@@ -82,6 +84,7 @@ def _unverified_ssl_context() -> ssl.SSLContext:
     ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
+    ssl_context.set_alpn_protocols(["h2"])
     return ssl_context
 
 
